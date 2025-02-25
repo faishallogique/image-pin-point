@@ -5,7 +5,7 @@ import 'package:image_pin_point/src/controller/image_pin_point_controller.dart';
 /// A widget that provides UI controls for the ImagePinPoint functionality
 ///
 /// This widget displays:
-/// - A set of buttons for selecting different pin types (with different colors and labels)
+/// - A set of buttons for selecting different pin types
 /// - A clear button to remove all pins
 /// - A save button to save the image with pins to the device gallery
 ///
@@ -14,28 +14,26 @@ class ImagePinPointButtons extends StatelessWidget
     with ImagePinPointController {
   /// Creates an ImagePinPointButtons widget
   ///
-  /// [onSelectedButtonTapped] - Callback when a pin button is selected
-  /// [onClearButtonTapped] - Callback when the clear button is pressed
-  /// [imageKey] - Key to the image container for saving functionality
+  /// Parameters:
+  /// - [onSelectedButtonTapped]: Callback when a pin button is selected
+  /// - [onClearButtonTapped]: Callback when the clear button is pressed
+  /// - [pinnerConfigs]: List of widgets representing different pin configurations
   ImagePinPointButtons({
     super.key,
     required this.onSelectedButtonTapped,
     required this.onClearButtonTapped,
+    required this.pinnerConfigs,
   });
 
   /// Callback triggered when a pin button is selected
   final ValueChanged<Pinner> onSelectedButtonTapped;
 
   /// Callback triggered when the clear button is pressed
-  final Function() onClearButtonTapped;
+  final VoidCallback onClearButtonTapped;
 
-  /// Predefined pin configurations with different colors and labels
-  final pinnerConfigs = [
-    const PinnerConfig(label: "1", color: Colors.red),
-    const PinnerConfig(label: "2", color: Colors.green),
-    const PinnerConfig(label: "3", color: Colors.blue),
-    const PinnerConfig(label: "4", color: Colors.yellow),
-  ];
+  /// List of widgets representing different pin configurations
+  /// These will be displayed in the button row for selection
+  final List<Widget> pinnerConfigs;
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +44,7 @@ class ImagePinPointButtons extends StatelessWidget
           // Pin selection buttons displayed in a wrap layout
           Wrap(
             spacing: 10,
-            children: pinnerConfigs
-                .map((config) => _buildButton(
-                    config.label, config.color, onSelectedButtonTapped))
-                .toList(),
+            children: pinnerConfigs,
           ),
           const Divider(),
           // Action buttons for clearing pins and saving the image
@@ -59,12 +54,14 @@ class ImagePinPointButtons extends StatelessWidget
               IconButton(
                 onPressed: onClearButtonTapped,
                 icon: const Icon(Icons.clear),
+                tooltip: 'Clear all pins',
               ),
               IconButton(
                 icon: const Icon(Icons.save),
                 onPressed: () async {
                   await saveImage(context);
                 },
+                tooltip: 'Save image with pins',
               ),
             ],
           ),
@@ -72,35 +69,4 @@ class ImagePinPointButtons extends StatelessWidget
       ),
     );
   }
-
-  /// Builds an individual pin selection button
-  ///
-  /// [label] - Text displayed on the button
-  /// [color] - Background color of the button
-  /// [onSelectedButtonTapped] - Callback when this button is pressed
-  Widget _buildButton(String label, Color color,
-      final Function(Pinner selectedPinner) onSelectedButtonTapped) {
-    return ElevatedButton(
-      onPressed: () {
-        onSelectedButtonTapped.call(
-            Pinner(color: color, label: label, position: const Offset(0, 0)));
-      },
-      style: ElevatedButton.styleFrom(backgroundColor: color),
-      child: Text(label, style: const TextStyle(color: Colors.white)),
-    );
-  }
-}
-
-/// Configuration class for pin buttons
-///
-/// Defines the appearance and identity of each pin type
-class PinnerConfig {
-  /// Text label displayed on the pin and button
-  final String label;
-
-  /// Color of the pin and button
-  final Color color;
-
-  /// Creates a pin configuration
-  const PinnerConfig({required this.label, required this.color});
 }

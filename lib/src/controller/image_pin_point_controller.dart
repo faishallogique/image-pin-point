@@ -38,11 +38,15 @@ import 'package:saver_gallery/saver_gallery.dart';
 mixin class ImagePinPointController {
   /// Loads an image and calculates its aspect ratio
   ///
-  /// [imageSource] can be either a network URL or a local file path
-  /// [callBack] is called with the loaded image information
-  ///
   /// This method creates an appropriate image provider based on the source type,
   /// then resolves the image and provides dimension information through the callback.
+  ///
+  /// Parameters:
+  /// - [imageSource]: Can be either a network URL or a local file path
+  /// - [callBack]: Called with the loaded image information once available
+  ///
+  /// The callback provides access to the image dimensions needed for proper scaling
+  /// and positioning of pins on the image.
   Future<void> loadImageAspectRatio(
       String imageSource, Function(ImageInfo) callBack) async {
     final image = Image(
@@ -62,15 +66,22 @@ mixin class ImagePinPointController {
 
   /// Processes tap events and converts tap coordinates to image coordinates
   ///
-  /// Takes into account:
-  /// - Container size and position
-  /// - Image size and aspect ratio
-  /// - Bounds checking to ensure tap is within image
+  /// This method handles the complex task of translating screen tap positions to
+  /// coordinates relative to the original image, accounting for scaling and positioning.
   ///
-  /// [details] contains the tap information including global position
-  /// [imageKey] is the key to the widget containing the image
-  /// [callBack] is called with the adjusted position if the tap is valid
-  /// [imageWidth] and [imageHeight] are the dimensions of the original image
+  /// Parameters:
+  /// - [details]: Contains the tap information including global position
+  /// - [imageKey]: Key to the widget containing the image
+  /// - [callBack]: Called with the adjusted position if the tap is valid
+  /// - [imageWidth]: Original width of the image
+  /// - [imageHeight]: Original height of the image
+  ///
+  /// The method performs several important steps:
+  /// 1. Converts global tap position to local position within the image container
+  /// 2. Calculates the actual image size within the container (accounting for aspect ratio)
+  /// 3. Maps the tap coordinates to the original image dimensions
+  /// 4. Validates that the tap is within the image bounds
+  /// 5. Calls the callback with the properly adjusted position
   void onTapDown(
     TapDownDetails details,
     GlobalKey<State<StatefulWidget>> imageKey,
@@ -79,16 +90,17 @@ mixin class ImagePinPointController {
     double imageHeight,
   ) {
     // Convert global tap position to local position within the image container
-    RenderBox box = imageKey.currentContext!.findRenderObject() as RenderBox;
-    Offset localPosition = box.globalToLocal(details.globalPosition);
+    final RenderBox box =
+        imageKey.currentContext!.findRenderObject() as RenderBox;
+    final Offset localPosition = box.globalToLocal(details.globalPosition);
 
     // Get the size of the container and calculate the actual image size within it
-    Size containerSize = box.size;
-    Size imageSize =
+    final Size containerSize = box.size;
+    final Size imageSize =
         CommonUtils.getImageSize(imageWidth, imageHeight, containerSize);
 
     // Convert the tap position to coordinates relative to the original image dimensions
-    Offset adjustedPosition = Offset(
+    final Offset adjustedPosition = Offset(
       (localPosition.dx / containerSize.width) * imageSize.width,
       (localPosition.dy / containerSize.height) * imageSize.height,
     );
@@ -107,23 +119,30 @@ mixin class ImagePinPointController {
 
   /// Saves the current image state including pins to the device gallery
   ///
-  /// Process:
-  /// 1. Captures the current widget state as an image
-  /// 2. Checks if the image needs to be flipped (some devices flip images during capture)
-  /// 3. Saves the processed image to the gallery
-  /// 4. Shows a success/error message
+  /// This method captures the current visual state of the widget (including all pins),
+  /// processes the image to correct any orientation issues, and saves it to the device gallery.
   ///
-  /// [imageKey] is the key to the widget containing the image to be saved
-  /// [context] is the build context, used for showing feedback to the user
+  /// Parameters:
+  /// - [context]: The build context, used for showing feedback to the user
+  ///
+  /// The method follows these steps:
+  /// 1. Captures the current widget state as an image using RepaintBoundary
+  /// 2. Converts the captured image to bytes
+  /// 3. Creates a temporary file to check if the image needs orientation correction
+  /// 4. Applies vertical flipping if needed (some devices flip images during capture)
+  /// 5. Saves the processed image to the gallery with a unique timestamp-based filename
+  /// 6. Cleans up temporary files and shows success/error feedback to the user
+  ///
+  /// Error handling is implemented throughout the process with appropriate logging.
   Future<void> saveImage(BuildContext context) async {
     try {
       // Capture the current state of the widget as an image
-      final boundary = Constants.imageKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary;
-      final image = await boundary.toImage(pixelRatio: 2.5);
+      final RenderRepaintBoundary boundary = Constants.imageKey.currentContext
+          ?.findRenderObject() as RenderRepaintBoundary;
+      final ui.Image image = await boundary.toImage(pixelRatio: 2.5);
 
       // Convert the captured image to bytes
-      final byteData = await image.toByteData(
+      final ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
       Uint8List? imageBytes = byteData?.buffer.asUint8List();
@@ -134,13 +153,13 @@ mixin class ImagePinPointController {
       }
 
       // Create a temporary file to check if the image is flipped
-      final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/temp_image.png';
-      final tempFile = File(filePath);
+      final Directory tempDir = await getTemporaryDirectory();
+      final String filePath = '${tempDir.path}/temp_image.png';
+      final File tempFile = File(filePath);
       await tempFile.writeAsBytes(imageBytes);
 
       // Check if the image is flipped (happens on some devices)
-      final isFlipped = await _isImageFlipped(
+      final bool isFlipped = await _isImageFlipped(
         tempFile,
         imageBytes,
       );
@@ -153,67 +172,83 @@ mixin class ImagePinPointController {
       }
 
       // Save the image to the gallery with a unique filename
-      String fileName = '${DateTime.now().microsecondsSinceEpoch}.png';
-      final res = await SaverGallery.saveImage(imageBytes!,
-          fileName: fileName, skipIfExists: false);
+      final String fileName = '${DateTime.now().microsecondsSinceEpoch}.png';
+      final result = await SaverGallery.saveImage(
+        imageBytes!,
+        fileName: fileName,
+        skipIfExists: false,
+      );
 
       // Clean up the temporary file
       if (await tempFile.exists()) {
         await tempFile.delete();
       }
 
-      log('DebugSuccess: Image saved successfully: $res');
+      log('DebugSuccess: Image saved successfully: $result');
 
       // Show feedback to the user
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              res.isSuccess ? 'Success save' : '${res.errorMessage}',
+              result.isSuccess
+                  ? 'Image saved successfully'
+                  : '${result.errorMessage}',
             ),
           ),
         );
       }
     } catch (e) {
-      log('DebugError: error save: $e');
+      log('DebugError: error saving image: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save image'),
+          ),
+        );
+      }
     }
   }
 
   /// Flips an image vertically using Flutter's Canvas API
   ///
-  /// Used to correct image orientation issues on some devices
-  /// Returns the flipped image as a Uint8List or null if the operation fails
+  /// This method corrects image orientation issues that can occur on some devices
+  /// during the capture process. It creates a new image with the correct orientation.
   ///
-  /// [imageBytes] is the original image data to be flipped
+  /// Parameters:
+  /// - [imageBytes]: The original image data to be flipped
+  ///
+  /// Returns:
+  /// - A Uint8List containing the flipped image data, or null if the operation fails
   ///
   /// The method works by:
   /// 1. Decoding the original image
-  /// 2. Creating a new canvas and applying transformations to flip the image
+  /// 2. Creating a new canvas and applying transformations to flip the image vertically
   /// 3. Converting the result back to bytes
+  /// 4. Properly disposing of resources to prevent memory leaks
   Future<Uint8List?> _flipImageVertically(Uint8List imageBytes) async {
     try {
-      final codec = await ui.instantiateImageCodec(imageBytes);
-      final frameInfo = await codec.getNextFrame();
-      final image = frameInfo.image;
+      final ui.Codec codec = await ui.instantiateImageCodec(imageBytes);
+      final ui.FrameInfo frameInfo = await codec.getNextFrame();
+      final ui.Image image = frameInfo.image;
 
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
+      final ui.PictureRecorder recorder = ui.PictureRecorder();
+      final Canvas canvas = Canvas(recorder);
 
-      for (int i = 0; i < 2; i++) {
-        // Move to bottom and flip vertically
-        canvas.translate(0, image.height.toDouble());
-        canvas.scale(1, -1);
-        canvas.drawImage(image, Offset.zero, Paint());
-      }
+      // Apply transformations to flip the image vertically
+      canvas.translate(0, image.height.toDouble());
+      canvas.scale(1, -1);
+      canvas.drawImage(image, Offset.zero, Paint());
 
-      final picture = recorder.endRecording();
-      final flippedImage = await picture.toImage(image.width, image.height);
+      final ui.Picture picture = recorder.endRecording();
+      final ui.Image flippedImage =
+          await picture.toImage(image.width, image.height);
 
-      final byteData = await flippedImage.toByteData(
+      final ByteData? byteData = await flippedImage.toByteData(
         format: ui.ImageByteFormat.png,
       );
 
-      // Dispose resources
+      // Dispose resources to prevent memory leaks
       image.dispose();
       flippedImage.dispose();
 
@@ -226,28 +261,35 @@ mixin class ImagePinPointController {
 
   /// Checks if an image is vertically flipped by comparing pixels
   ///
-  /// Compares the top row of the original image with the bottom row of the saved image
-  /// Returns true if the image appears to be flipped vertically
+  /// This method determines if an image needs orientation correction by comparing
+  /// the top row of the original image with the bottom row of the saved image.
   ///
-  /// [savedImageFile] is the file containing the potentially flipped image
-  /// [originalImageBytes] is the original image data before saving
+  /// Parameters:
+  /// - [savedImageFile]: The file containing the potentially flipped image
+  /// - [originalImageBytes]: The original image data before saving
   ///
-  /// The method works by:
+  /// Returns:
+  /// - true if the image appears to be flipped vertically, false otherwise
+  ///
+  /// The detection works by:
   /// 1. Decoding both the original and saved images
   /// 2. Comparing pixels from the top row of the original with the bottom row of the saved image
-  /// 3. If they match, the image is likely flipped
+  /// 3. If a significant number of pixels match, the image is likely flipped
+  ///
+  /// This is necessary because some devices or rendering processes may flip images
+  /// during the capture and save process.
   Future<bool> _isImageFlipped(
     File savedImageFile,
     Uint8List originalImageBytes,
   ) async {
     try {
       // Decode original image
-      img.Image? originalImage = img.decodeImage(originalImageBytes);
+      final img.Image? originalImage = img.decodeImage(originalImageBytes);
       if (originalImage == null) return false;
 
       // Decode saved image
-      Uint8List savedImageBytes = await savedImageFile.readAsBytes();
-      img.Image? savedImage = img.decodeImage(savedImageBytes);
+      final Uint8List savedImageBytes = await savedImageFile.readAsBytes();
+      final img.Image? savedImage = img.decodeImage(savedImageBytes);
       if (savedImage == null) return false;
 
       // Ensure both images are the same size
@@ -256,20 +298,25 @@ mixin class ImagePinPointController {
         return false;
       }
 
-      int width = originalImage.width;
-      int height = originalImage.height;
+      final int width = originalImage.width;
+      final int height = originalImage.height;
 
       // Compare pixels from the first and last row
-      for (int x = 0; x < width; x++) {
+      // We use a sample of pixels across the width to determine if flipped
+      int matchCount = 0;
+      final int sampleSize = width;
+
+      for (int x = 0; x < width; x += width ~/ sampleSize) {
         final originalTopPixel = originalImage.getPixel(x, 0);
         final savedBottomPixel = savedImage.getPixel(x, height - 1);
 
-        if (originalTopPixel != savedBottomPixel) {
-          return false; // If pixels don't match, it's not flipped
+        if (originalTopPixel == savedBottomPixel) {
+          matchCount++;
         }
       }
 
-      return true; // The image is flipped if the top row matches the bottom row
+      // If more than 75% of sampled pixels match, consider it flipped
+      return matchCount > (sampleSize * 0.75);
     } catch (e) {
       log("DebugError: checking flipped image: $e");
       return false;

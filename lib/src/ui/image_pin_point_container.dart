@@ -6,41 +6,31 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_pin_point/src/constants/constants.dart';
 import 'package:image_pin_point/src/domain/pinner.dart';
-import 'package:image_pin_point/src/ui/pinner_painter_widget.dart';
 import 'package:image_pin_point/src/utils/common_utils.dart';
 
 import '../controller/image_pin_point_controller.dart';
-
-/// Style configuration for pins including radius and label text style
-///
-/// This class defines the visual appearance of pins placed on the image:
-/// - [radius]: Controls the size of the circular pin markers (default: 10.0)
-/// - [labelStyle]: Defines the text style for pin labels (default: white, size 12)
-class PinStyle {
-  final double radius;
-  final TextStyle labelStyle;
-
-  const PinStyle({
-    this.radius = 10.0,
-    this.labelStyle = const TextStyle(color: Colors.white, fontSize: 12),
-  });
-}
 
 /// A widget that displays an image and allows adding pins/markers at specific points
 ///
 /// This widget provides functionality to:
 /// - Display an image from network or file source
 /// - Show existing pins at specific coordinates on the image
-/// - Add new pins by tapping on the image
+/// - Add new pins by tapping on the image after selecting a pin config
 /// - Maintain proper aspect ratio of the original image
 /// - Notify parent widgets when pins are added or changed
 class ImagePinPointContainer extends StatefulWidget {
+  /// Creates an image container that supports pin placement
+  ///
+  /// Parameters:
+  /// - [imageSource]: Path or URL to the image (required)
+  /// - [initialPins]: List of pins to display initially
+  /// - [selectedPinner]: Currently selected pin type for adding new pins
+  /// - [onPinsChanged]: Callback when pins are added or modified
   const ImagePinPointContainer({
     super.key,
     this.initialPins = const [],
     required this.imageSource,
     this.selectedPinner,
-    this.pinStyle = const PinStyle(),
     required this.onPinsChanged,
   });
 
@@ -55,10 +45,6 @@ class ImagePinPointContainer extends StatefulWidget {
   /// Currently selected pin style and properties
   /// When set, defines the appearance of new pins added to the image
   final Pinner? selectedPinner;
-
-  /// Style configuration for all pins
-  /// Controls the visual appearance of all pins on the image
-  final PinStyle pinStyle;
 
   /// Callback triggered when pins are added/modified
   /// Provides the updated list of all pins on the image
@@ -81,9 +67,10 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// Updated when new pins are added or when initialPins changes
   late List<Pinner> pins;
 
-  /// Dimensions of the loaded image
-  /// Used to maintain proper aspect ratio and calculate pin positions
+  /// Width of the loaded image in pixels
   late double imageWidth;
+
+  /// Height of the loaded image in pixels
   late double imageHeight;
 
   /// Currently selected pin for adding to image
@@ -98,6 +85,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     imageHeight = 1.0;
     pins = widget.initialPins;
     selectedPinner = widget.selectedPinner;
+
     _updateImageDimensions();
   }
 
@@ -167,8 +155,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
           ...pins,
           Pinner(
             position: adjustedPosition,
-            color: selectedPinner!.color,
-            label: selectedPinner!.label,
+            widget: selectedPinner!.widget,
           )
         ];
         widget.onPinsChanged.call(pins);
@@ -188,7 +175,19 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
             child: Stack(
               children: [
                 _buildImage(),
-                PinnerPainterWidget(pins: pins, pinStyle: widget.pinStyle),
+                if (pins.isNotEmpty)
+                  ...pins.map((pinWidget) {
+                    return Positioned(
+                      left: pinWidget.position.dx,
+                      top: pinWidget.position.dy,
+                      child: CenteredPinWidget(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: pinWidget.widget,
+                        ),
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
@@ -222,6 +221,80 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     } catch (e) {
       log('DebugError: building image: $e');
       return const Center(child: Icon(Icons.error));
+    }
+  }
+}
+
+/// A widget that centers its child at the origin point
+///
+/// This widget ensures that pins are properly centered at their exact coordinates
+/// by measuring the child widget's size and applying an appropriate offset.
+class CenteredPinWidget extends StatefulWidget {
+  /// The widget to be centered (typically a pin marker)
+  final Widget child;
+
+  /// Creates a widget that centers its child at the origin point
+  const CenteredPinWidget({
+    super.key,
+    required this.child,
+  });
+
+  @override
+  State<CenteredPinWidget> createState() => _CenteredPinWidgetState();
+}
+
+/// State for the CenteredPinWidget that handles measurement and positioning
+class _CenteredPinWidgetState extends State<CenteredPinWidget> {
+  /// Key used to access the child widget for measurement
+  final GlobalKey _childKey = GlobalKey();
+
+  /// Size of the child widget after measurement
+  Size _childSize = Size.zero;
+
+  /// Whether the child has been measured yet
+  bool _isMeasured = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Schedule a post-frame callback to measure the child
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureChild());
+  }
+
+  /// Measures the size of the child widget
+  ///
+  /// This method:
+  /// - Accesses the render object of the child widget
+  /// - Extracts its dimensions
+  /// - Updates the state with the measured size
+  void _measureChild() {
+    final RenderBox? renderBox =
+        _childKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      setState(() {
+        _childSize = renderBox.size;
+        _isMeasured = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isMeasured) {
+      // First build: measure the child using offscreen rendering
+      return Offstage(
+        offstage: true, // Hide during measurement without using Opacity
+        child: Container(
+          key: _childKey,
+          child: widget.child,
+        ),
+      );
+    } else {
+      // Subsequent builds: apply the offset
+      return Transform.translate(
+        offset: Offset(-_childSize.width / 2, -_childSize.height / 2),
+        child: widget.child,
+      );
     }
   }
 }
