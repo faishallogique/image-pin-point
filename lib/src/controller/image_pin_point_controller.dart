@@ -120,7 +120,7 @@ mixin class ImagePinPointController {
       // Capture the current state of the widget as an image
       final boundary = Constants.imageKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary;
-      final image = await boundary.toImage();
+      final image = await boundary.toImage(pixelRatio: 2.5);
 
       // Convert the captured image to bytes
       final byteData = await image.toByteData(
@@ -154,12 +154,8 @@ mixin class ImagePinPointController {
 
       // Save the image to the gallery with a unique filename
       String fileName = '${DateTime.now().microsecondsSinceEpoch}.png';
-      final res = await SaverGallery.saveImage(
-        imageBytes!,
-        fileName: fileName,
-        skipIfExists: false,
-        quality: 100,
-      );
+      final res = await SaverGallery.saveImage(imageBytes!,
+          fileName: fileName, skipIfExists: false);
 
       // Clean up the temporary file
       if (await tempFile.exists()) {

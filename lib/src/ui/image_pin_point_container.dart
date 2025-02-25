@@ -180,15 +180,17 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   Widget build(BuildContext context) {
     return Center(
       child: AspectRatio(
-        key: Constants.imageKey,
         aspectRatio: imageWidth / imageHeight,
-        child: GestureDetector(
-          onTapDown: _addPin,
-          child: Stack(
-            children: [
-              _buildImage(),
-              PinnerPainterWidget(pins: pins, pinStyle: widget.pinStyle),
-            ],
+        child: RepaintBoundary(
+          key: Constants.imageKey,
+          child: GestureDetector(
+            onTapDown: _addPin,
+            child: Stack(
+              children: [
+                _buildImage(),
+                PinnerPainterWidget(pins: pins, pinStyle: widget.pinStyle),
+              ],
+            ),
           ),
         ),
       ),
