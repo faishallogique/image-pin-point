@@ -114,8 +114,6 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
       });
     }
 
-    log('mydebug didUpdateWidget : ${widget.initialPins.length} -- ${oldWidget.initialPins.length} -- ${pins.length}');
-
     // Update pins if initial pins list changes
     if (!listEquals(oldWidget.initialPins, widget.initialPins)) {
       setState(() {
@@ -148,7 +146,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
           });
         }
       } catch (e) {
-        log('Error loading image: $e');
+        log('DebugError: loading image: $e');
       }
     });
   }
@@ -220,7 +218,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
                   const Center(child: Icon(Icons.error)),
             );
     } catch (e) {
-      log('Error building image: $e');
+      log('DebugError: building image: $e');
       return const Center(child: Icon(Icons.error));
     }
   }

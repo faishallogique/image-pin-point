@@ -129,7 +129,7 @@ mixin class ImagePinPointController {
       Uint8List? imageBytes = byteData?.buffer.asUint8List();
 
       if (imageBytes == null) {
-        log('mydebug: Failed to capture image');
+        log('DebugError: Failed to capture image');
         return;
       }
 
@@ -145,7 +145,7 @@ mixin class ImagePinPointController {
         imageBytes,
       );
 
-      log('mydebug: isFlipped: $isFlipped');
+      log('DebugInfo: isFlipped: $isFlipped');
 
       // Correct the orientation if needed
       if (isFlipped) {
@@ -166,7 +166,7 @@ mixin class ImagePinPointController {
         await tempFile.delete();
       }
 
-      log('mydebug: Image saved successfully: $res');
+      log('DebugSuccess: Image saved successfully: $res');
 
       // Show feedback to the user
       if (context.mounted) {
@@ -179,7 +179,7 @@ mixin class ImagePinPointController {
         );
       }
     } catch (e) {
-      log('mydebug: error save: $e');
+      log('DebugError: error save: $e');
     }
   }
 
@@ -223,7 +223,7 @@ mixin class ImagePinPointController {
 
       return byteData?.buffer.asUint8List();
     } catch (e) {
-      log('Error flipping image: $e');
+      log('DebugError: flipping image: $e');
       return null;
     }
   }
@@ -275,7 +275,7 @@ mixin class ImagePinPointController {
 
       return true; // The image is flipped if the top row matches the bottom row
     } catch (e) {
-      log("Error checking flipped image: $e");
+      log("DebugError: checking flipped image: $e");
       return false;
     }
   }
