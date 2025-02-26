@@ -27,7 +27,7 @@ import 'package:image_pin_point/src/utils/image_utils.dart';
 /// - Converting tap coordinates to image coordinates
 /// - Capturing and saving images with pins to the device gallery
 /// - Handling image orientation issues that may occur on different devices
-class ImagePinPointController {
+mixin class ImagePinPointController {
   /// Loads an image and calculates its aspect ratio
   ///
   /// This method creates an appropriate image provider based on the source type,

@@ -65,7 +65,8 @@ class ImagePinPointContainer extends StatefulWidget {
 /// - Handles image loading and dimension calculation
 /// - Processes tap events to add new pins
 /// - Manages the widget lifecycle and updates
-class _ImagePinPointContainerState extends State<ImagePinPointContainer> {
+class _ImagePinPointContainerState extends State<ImagePinPointContainer>
+    with ImagePinPointController {
   /// List of all pins currently on the image
   /// Updated when new pins are added or when initialPins changes
   late List<Pinner> _pins;
@@ -81,7 +82,6 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer> {
   Pinner? _selectedPinner;
 
   /// Controller for handling image loading and pin placement
-  final _imagePinPointController = ImagePinPointController();
 
   @override
   void initState() {
@@ -131,7 +131,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer> {
   /// - Updates the state with the new dimensions
   /// - Handles any errors that occur during loading
   void _updateImageDimensions() {
-    _imagePinPointController.loadImageAspectRatio(widget.imageSource, (info) {
+    loadImageAspectRatio(widget.imageSource, (info) {
       try {
         if (mounted) {
           setState(() {
@@ -155,8 +155,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer> {
   void _addPin(TapDownDetails details) {
     if (_selectedPinner == null) return;
 
-    _imagePinPointController.onTapDown(details, widget.imagePinPointKey,
-        (adjustedPosition) {
+    onTapDown(details, widget.imagePinPointKey, (adjustedPosition) {
       setState(() {
         _pins = [
           ..._pins,
