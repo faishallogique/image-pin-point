@@ -12,39 +12,39 @@ import 'package:image_pin_point/src/utils/image_utils.dart';
 ///
 /// This widget provides functionality to:
 /// - Display an image from network or file source
-/// - Show existing pins at specific coordinates on the image
-/// - Add new pins by tapping on the image after selecting a pin config
+/// - Show pins at specific coordinates on the image
+/// - Add new pins by tapping on the image after selecting a pin style
 /// - Maintain proper aspect ratio of the original image
 /// - Notify parent widgets when pins are added or changed
 class ImagePinPointContainer extends StatefulWidget {
   /// Creates an image container that supports pin placement
   ///
   /// Parameters:
-  /// - [imageSource]: Path or URL to the image (required)
-  /// - [initialPins]: List of pins to display initially
-  /// - [selectedPinner]: Currently selected pin type for adding new pins
-  /// - [onPinsUpdated]: Callback when pins are added or modified
+  /// - [imageSource]: File path or URL to the image (required)
+  /// - [pinsOnTheImage]: List of pins to display on the image
+  /// - [selectedPinStyle]: Currently selected pin style to add new pin on the image
+  /// - [onPinsUpdated]: Callback when pins on the image are added
   /// - [imagePinPointKey]: Key used for capturing the widget state as an image
   const ImagePinPointContainer({
     super.key,
-    this.initialPins = const [],
+    this.pinsOnTheImage = const [],
     required this.imageSource,
-    this.selectedPinner,
+    this.selectedPinStyle,
     required this.onPinsUpdated,
     required this.imagePinPointKey,
   });
 
-  /// Initial list of pins to display on the image
-  /// These pins will be shown when the widget first loads
-  final List<Pinner> initialPins;
+  /// list of pins to display on the image
+  /// These pins will be shown when the widget loads
+  final List<Pinner> pinsOnTheImage;
 
-  /// Source path/URL of the image to display
+  /// Source file path/URL of the image to display
   /// Can be either a network URL or a local file path
   final String imageSource;
 
   /// Currently selected pin style and properties
   /// When set, defines the appearance of new pins added to the image
-  final Pinner? selectedPinner;
+  final Pinner? selectedPinStyle;
 
   /// Callback triggered when pins are added/modified
   /// Provides the updated list of all pins on the image
@@ -68,7 +68,7 @@ class ImagePinPointContainer extends StatefulWidget {
 class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     with ImagePinPointController {
   /// List of all pins currently on the image
-  /// Updated when new pins are added or when initialPins changes
+  /// Updated when new pins are added or when pinsOnTheImage changes
   late List<Pinner> _pins;
 
   /// Width of the loaded image in pixels
@@ -79,9 +79,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
 
   /// Currently selected pin for adding to image
   /// Determines the appearance of new pins when tapping the image
-  Pinner? _selectedPinner;
-
-  /// Controller for handling image loading and pin placement
+  Pinner? _selectedPinStyle;
 
   @override
   void initState() {
@@ -89,8 +87,8 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     // Initialize with default values
     _imageWidth = 1.0;
     _imageHeight = 1.0;
-    _pins = widget.initialPins;
-    _selectedPinner = widget.selectedPinner;
+    _pins = widget.pinsOnTheImage;
+    _selectedPinStyle = widget.selectedPinStyle;
 
     _updateImageDimensions();
   }
@@ -104,21 +102,21 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
       _updateImageDimensions();
       setState(() {
         _pins = [];
-        _selectedPinner = null;
+        _selectedPinStyle = null;
       });
     }
 
-    // Update pins if initial pins list changes
-    if (!listEquals(oldWidget.initialPins, widget.initialPins)) {
+    // Update pins if pins list changes
+    if (!listEquals(oldWidget.pinsOnTheImage, widget.pinsOnTheImage)) {
       setState(() {
-        _pins = widget.initialPins;
+        _pins = widget.pinsOnTheImage;
       });
     }
 
-    // Update selected pinner if it changes
-    if (oldWidget.selectedPinner != widget.selectedPinner) {
+    // Update selected pin if it changes
+    if (oldWidget.selectedPinStyle != widget.selectedPinStyle) {
       setState(() {
-        _selectedPinner = widget.selectedPinner;
+        _selectedPinStyle = widget.selectedPinStyle;
       });
     }
   }
@@ -130,19 +128,19 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// - Extracts the original width and height
   /// - Updates the state with the new dimensions
   /// - Handles any errors that occur during loading
-  void _updateImageDimensions() {
-    loadImageAspectRatio(widget.imageSource, (info) {
-      try {
-        if (mounted) {
-          setState(() {
-            _imageWidth = info.image.width.toDouble();
-            _imageHeight = info.image.height.toDouble();
-          });
-        }
-      } catch (e) {
-        log('Error loading image dimensions: $e');
+  void _updateImageDimensions() async {
+    final imageInfo = await ImageUtils.loadImageAspectRatio(widget.imageSource);
+
+    try {
+      if (mounted) {
+        setState(() {
+          _imageWidth = imageInfo.image.width.toDouble();
+          _imageHeight = imageInfo.image.height.toDouble();
+        });
       }
-    });
+    } catch (e) {
+      log('${LogMessages.errorLoadingImageDimensions}: $e');
+    }
   }
 
   /// Adds a new pin at the tapped location
@@ -153,19 +151,23 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// - Creates a new pin at the adjusted position
   /// - Updates the pins list and notifies listeners
   void _addPin(TapDownDetails details) {
-    if (_selectedPinner == null) return;
+    if (_selectedPinStyle == null) return;
 
     onTapDown(details, widget.imagePinPointKey, (adjustedPosition) {
-      setState(() {
-        _pins = [
-          ..._pins,
-          Pinner(
-            position: adjustedPosition,
-            widget: _selectedPinner!.widget,
-          )
-        ];
-        widget.onPinsUpdated.call(_pins);
-      });
+      try {
+        setState(() {
+          _pins = [
+            ..._pins,
+            Pinner(
+              position: adjustedPosition,
+              widget: _selectedPinStyle!.widget,
+            )
+          ];
+          widget.onPinsUpdated.call(_pins);
+        });
+      } catch (e) {
+        log('${LogMessages.errorAddingPin}: $e');
+      }
     }, _imageWidth, _imageHeight);
   }
 

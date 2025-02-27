@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 
 export 'src/controller/image_pin_point_controller.dart';
+export 'src/domain/operation_result.dart';
 export 'src/domain/pinner.dart';
 export 'src/ui/image_pin_point_container.dart';
 export 'src/ui/image_pin_point_options.dart';
@@ -66,10 +67,11 @@ class ImagePinPoint {
             isSuccess: false, message: 'Failed to capture image');
       }
 
+      final String fileName = '${DateTime.now().microsecondsSinceEpoch}.png';
+
       // Create a temporary file to check if the image is flipped
       final Directory tempDir = await getTemporaryDirectory();
-      final String filePath =
-          '${tempDir.path}/temp_${DateTime.now().microsecondsSinceEpoch}.png';
+      final String filePath = '${tempDir.path}/temp_$fileName';
       final File tempFileToCheckOrientation = File(filePath);
       await tempFileToCheckOrientation.writeAsBytes(imageBytes);
 
@@ -91,10 +93,9 @@ class ImagePinPoint {
         await tempFileToCheckOrientation.delete();
       }
 
-      // Create a local copy of the saved image with the same filename
+      // Create a local copy of the saved image
       // This allows us to return the file path in the OperationResult
       // while still saving the image to the gallery
-      final String fileName = '${DateTime.now().microsecondsSinceEpoch}.png';
       final String finalFilePath = '${tempDir.path}/$fileName';
       final File finalFile = File(finalFilePath)..createSync(recursive: true);
       await finalFile.writeAsBytes(imageBytes!);

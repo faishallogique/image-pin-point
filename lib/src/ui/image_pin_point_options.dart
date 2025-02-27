@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 
-/// A widget that provides UI controls for the ImagePinPoint functionality
+/// A widget that displays a collection of pin style options for the ImagePinPoint system.
 ///
-/// This widget displays a set of buttons for selecting different pin types
-/// in a wrapped layout that adapts to available space.
+/// This widget provides a horizontal wrap layout for pin style buttons and controls:
+/// - Displays pin style options (such as different colors or shapes)
+/// - Supports utility buttons (clear, save, etc.)
+/// - Automatically wraps to new lines when space is limited
+/// - Centers all options for better visual presentation
 class ImagePinPointOptions extends StatelessWidget {
-  /// Creates an ImagePinPointOptions widget
+  /// The list of widgets representing different pin styles and their actions.
   ///
-  /// Parameters:
-  /// - [pinOptions]: List of widgets representing different pin configurations
-  ///   that will be displayed in a wrapped layout for selection
+  /// These are typically buttons that you design which, when pressed, will:
+  /// - Select a pin style to be added to the image by setting the [selectedPinStyle]
+  /// - Perform actions such as resetting pins by clearing the [pinsOnTheImage]
+  /// - Save the image by calling the [ImagePinPoint.saveImage] method
   const ImagePinPointOptions({
     super.key,
-    required this.pinOptions,
+    required this.pinStyleOptions,
   });
 
-  /// List of widgets representing different pin configurations
-  /// These will be displayed in a wrapped layout for selection
-  final List<Widget> pinOptions;
+  final List<Widget> pinStyleOptions;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +28,7 @@ class ImagePinPointOptions extends StatelessWidget {
       child: Wrap(
         spacing: 10,
         alignment: WrapAlignment.center,
-        children: pinOptions,
+        children: pinStyleOptions,
       ),
     );
   }

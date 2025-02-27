@@ -21,4 +21,11 @@ class LogMessages {
   /// Error prefix for checking image flip state failures
   static const String errorCheckingFlippedImage =
       'Error: checking flipped image: ';
+
+  /// Error prefix for loading image dimensions failures
+  static const String errorLoadingImageDimensions =
+      'Error: loading image dimensions: ';
+
+  /// Error prefix for adding pin failures
+  static const String errorAddingPin = 'Error: adding pin: ';
 }

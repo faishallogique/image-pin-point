@@ -14,9 +14,6 @@
 /// ```
 library;
 
-import 'dart:io';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_pin_point/src/utils/image_utils.dart';
 
@@ -28,34 +25,6 @@ import 'package:image_pin_point/src/utils/image_utils.dart';
 /// - Capturing and saving images with pins to the device gallery
 /// - Handling image orientation issues that may occur on different devices
 mixin class ImagePinPointController {
-  /// Loads an image and calculates its aspect ratio
-  ///
-  /// This method creates an appropriate image provider based on the source type,
-  /// then resolves the image and provides dimension information through the callback.
-  ///
-  /// Parameters:
-  /// - [imageSource]: Can be either a network URL or a local file path
-  /// - [callBack]: Called with the loaded image information once available
-  ///
-  /// The callback provides access to the image dimensions needed for proper scaling
-  /// and positioning of pins on the image.
-  Future<void> loadImageAspectRatio(
-      String imageSource, Function(ImageInfo) callBack) async {
-    final image = Image(
-      image: ImageUtils.isNetworkImage(imageSource)
-          ? CachedNetworkImageProvider(imageSource)
-          : FileImage(File(imageSource)),
-    );
-
-    final ImageStream stream = image.image.resolve(const ImageConfiguration());
-
-    stream.addListener(
-      ImageStreamListener((ImageInfo info, bool _) {
-        callBack.call(info);
-      }),
-    );
-  }
-
   /// Processes tap events and converts tap coordinates to image coordinates
   ///
   /// This method handles the complex task of translating screen tap positions to
