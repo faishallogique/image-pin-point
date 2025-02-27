@@ -48,6 +48,7 @@ for Android add this to `AndroidManifest.xml` file:
 
 ## Usage
 
+main widget
 ```dart
 import 'package:image_pin_point/image_pin_point.dart';
 
@@ -127,7 +128,9 @@ ImagePinPointOptions(
     ),
     ],
 )
+...
 
+...
 // your custom widget
 Widget _buildButton(String label, Color color,
     final Function(Pinner selectedPinner) onSelectedButtonTapped) {
