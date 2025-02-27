@@ -2,6 +2,8 @@
 
 A Flutter package that allows you to add interactive pins to images with customizable styles and positions.
 
+[Image](https://github.com/faishallogique/image-pin-point/blob/master/screenshot/usage_example.gif?raw=true)
+
 ---
 
 ## Features
