@@ -4,65 +4,55 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_pin_point/src/constants/constants.dart';
-import 'package:image_pin_point/src/domain/pinner.dart';
-import 'package:image_pin_point/src/ui/pinner_painter_widget.dart';
-import 'package:image_pin_point/src/utils/common_utils.dart';
-
-import '../controller/image_pin_point_controller.dart';
-
-/// Style configuration for pins including radius and label text style
-///
-/// This class defines the visual appearance of pins placed on the image:
-/// - [radius]: Controls the size of the circular pin markers (default: 10.0)
-/// - [labelStyle]: Defines the text style for pin labels (default: white, size 12)
-class PinStyle {
-  final double radius;
-  final TextStyle labelStyle;
-
-  const PinStyle({
-    this.radius = 10.0,
-    this.labelStyle = const TextStyle(color: Colors.white, fontSize: 12),
-  });
-}
+import 'package:image_pin_point/image_pin_point.dart';
+import 'package:image_pin_point/src/constants/log_messages.dart';
+import 'package:image_pin_point/src/utils/image_utils.dart';
 
 /// A widget that displays an image and allows adding pins/markers at specific points
 ///
 /// This widget provides functionality to:
 /// - Display an image from network or file source
-/// - Show existing pins at specific coordinates on the image
-/// - Add new pins by tapping on the image
+/// - Show pins at specific coordinates on the image
+/// - Add new pins by tapping on the image after selecting a pin style
 /// - Maintain proper aspect ratio of the original image
 /// - Notify parent widgets when pins are added or changed
 class ImagePinPointContainer extends StatefulWidget {
+  /// Creates an image container that supports pin placement
+  ///
+  /// Parameters:
+  /// - [imageSource]: File path or URL to the image (required)
+  /// - [pinsOnTheImage]: List of pins to display on the image
+  /// - [selectedPinStyle]: Currently selected pin style to add new pin on the image
+  /// - [onPinsUpdated]: Callback when pins on the image are added
+  /// - [imagePinPointKey]: Key used for capturing the widget state as an image
   const ImagePinPointContainer({
     super.key,
-    this.initialPins = const [],
+    this.pinsOnTheImage = const [],
     required this.imageSource,
-    this.selectedPinner,
-    this.pinStyle = const PinStyle(),
-    required this.onPinsChanged,
+    this.selectedPinStyle,
+    required this.onPinsUpdated,
+    required this.imagePinPointKey,
   });
 
-  /// Initial list of pins to display on the image
-  /// These pins will be shown when the widget first loads
-  final List<Pinner> initialPins;
+  /// list of pins to display on the image
+  /// These pins will be shown when the widget loads
+  final List<Pinner> pinsOnTheImage;
 
-  /// Source path/URL of the image to display
+  /// Source file path/URL of the image to display
   /// Can be either a network URL or a local file path
   final String imageSource;
 
   /// Currently selected pin style and properties
   /// When set, defines the appearance of new pins added to the image
-  final Pinner? selectedPinner;
-
-  /// Style configuration for all pins
-  /// Controls the visual appearance of all pins on the image
-  final PinStyle pinStyle;
+  final Pinner? selectedPinStyle;
 
   /// Callback triggered when pins are added/modified
   /// Provides the updated list of all pins on the image
-  final void Function(List<Pinner> pins) onPinsChanged;
+  final void Function(List<Pinner> pins) onPinsUpdated;
+
+  /// Key used for capturing the widget state as an image
+  /// This is required for the image saving functionality
+  final GlobalKey imagePinPointKey;
 
   @override
   State<ImagePinPointContainer> createState() => _ImagePinPointContainerState();
@@ -78,26 +68,28 @@ class ImagePinPointContainer extends StatefulWidget {
 class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     with ImagePinPointController {
   /// List of all pins currently on the image
-  /// Updated when new pins are added or when initialPins changes
-  late List<Pinner> pins;
+  /// Updated when new pins are added or when pinsOnTheImage changes
+  late List<Pinner> _pins;
 
-  /// Dimensions of the loaded image
-  /// Used to maintain proper aspect ratio and calculate pin positions
-  late double imageWidth;
-  late double imageHeight;
+  /// Width of the loaded image in pixels
+  late double _imageWidth;
+
+  /// Height of the loaded image in pixels
+  late double _imageHeight;
 
   /// Currently selected pin for adding to image
   /// Determines the appearance of new pins when tapping the image
-  Pinner? selectedPinner;
+  Pinner? _selectedPinStyle;
 
   @override
   void initState() {
     super.initState();
     // Initialize with default values
-    imageWidth = 1.0;
-    imageHeight = 1.0;
-    pins = widget.initialPins;
-    selectedPinner = widget.selectedPinner;
+    _imageWidth = 1.0;
+    _imageHeight = 1.0;
+    _pins = widget.pinsOnTheImage;
+    _selectedPinStyle = widget.selectedPinStyle;
+
     _updateImageDimensions();
   }
 
@@ -109,22 +101,22 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     if (oldWidget.imageSource != widget.imageSource) {
       _updateImageDimensions();
       setState(() {
-        pins = [];
-        selectedPinner = null;
+        _pins = [];
+        _selectedPinStyle = null;
       });
     }
 
-    // Update pins if initial pins list changes
-    if (!listEquals(oldWidget.initialPins, widget.initialPins)) {
+    // Update pins if pins list changes
+    if (!listEquals(oldWidget.pinsOnTheImage, widget.pinsOnTheImage)) {
       setState(() {
-        pins = widget.initialPins;
+        _pins = widget.pinsOnTheImage;
       });
     }
 
-    // Update selected pinner if it changes
-    if (oldWidget.selectedPinner != widget.selectedPinner) {
+    // Update selected pin if it changes
+    if (oldWidget.selectedPinStyle != widget.selectedPinStyle) {
       setState(() {
-        selectedPinner = widget.selectedPinner;
+        _selectedPinStyle = widget.selectedPinStyle;
       });
     }
   }
@@ -136,19 +128,19 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// - Extracts the original width and height
   /// - Updates the state with the new dimensions
   /// - Handles any errors that occur during loading
-  void _updateImageDimensions() {
-    loadImageAspectRatio(widget.imageSource, (info) {
-      try {
-        if (mounted) {
-          setState(() {
-            imageWidth = info.image.width.toDouble();
-            imageHeight = info.image.height.toDouble();
-          });
-        }
-      } catch (e) {
-        log('DebugError: loading image: $e');
+  void _updateImageDimensions() async {
+    final imageInfo = await ImageUtils.loadImageAspectRatio(widget.imageSource);
+
+    try {
+      if (mounted) {
+        setState(() {
+          _imageWidth = imageInfo.image.width.toDouble();
+          _imageHeight = imageInfo.image.height.toDouble();
+        });
       }
-    });
+    } catch (e) {
+      log('${LogMessages.errorLoadingImageDimensions}: $e');
+    }
   }
 
   /// Adds a new pin at the tapped location
@@ -159,36 +151,51 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// - Creates a new pin at the adjusted position
   /// - Updates the pins list and notifies listeners
   void _addPin(TapDownDetails details) {
-    if (selectedPinner == null) return;
+    if (_selectedPinStyle == null) return;
 
-    onTapDown(details, Constants.imageKey, (adjustedPosition) {
-      setState(() {
-        pins = [
-          ...pins,
-          Pinner(
-            position: adjustedPosition,
-            color: selectedPinner!.color,
-            label: selectedPinner!.label,
-          )
-        ];
-        widget.onPinsChanged.call(pins);
-      });
-    }, imageWidth, imageHeight);
+    onTapDown(details, widget.imagePinPointKey, (adjustedPosition) {
+      try {
+        setState(() {
+          _pins = [
+            ..._pins,
+            Pinner(
+              position: adjustedPosition,
+              widget: _selectedPinStyle!.widget,
+            )
+          ];
+          widget.onPinsUpdated.call(_pins);
+        });
+      } catch (e) {
+        log('${LogMessages.errorAddingPin}: $e');
+      }
+    }, _imageWidth, _imageHeight);
   }
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: AspectRatio(
-        aspectRatio: imageWidth / imageHeight,
+        aspectRatio: _imageWidth / _imageHeight,
         child: RepaintBoundary(
-          key: Constants.imageKey,
+          key: widget.imagePinPointKey,
           child: GestureDetector(
             onTapDown: _addPin,
             child: Stack(
               children: [
                 _buildImage(),
-                PinnerPainterWidget(pins: pins, pinStyle: widget.pinStyle),
+                if (_pins.isNotEmpty)
+                  ..._pins.map((pin) {
+                    return Positioned(
+                      left: pin.position.dx,
+                      top: pin.position.dy,
+                      child: _PinCenterer(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: pin.widget,
+                        ),
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
@@ -206,7 +213,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// - Catches and logs any exceptions during image creation
   Widget _buildImage() {
     try {
-      return CommonUtils.isImageFromNetwork(widget.imageSource)
+      return ImageUtils.isNetworkImage(widget.imageSource)
           ? CachedNetworkImage(
               imageUrl: widget.imageSource,
               fit: BoxFit.contain,
@@ -220,8 +227,81 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
                   const Center(child: Icon(Icons.error)),
             );
     } catch (e) {
-      log('DebugError: building image: $e');
+      log('${LogMessages.errorBuildingImage}: $e');
       return const Center(child: Icon(Icons.error));
+    }
+  }
+}
+
+/// A widget that centers its child at the origin point
+///
+/// This widget ensures that pins are properly centered at their exact coordinates
+/// by measuring the child widget's size and applying an appropriate offset.
+class _PinCenterer extends StatefulWidget {
+  /// The widget to be centered (typically a pin marker)
+  final Widget child;
+
+  /// Creates a widget that centers its child at the origin point
+  const _PinCenterer({
+    required this.child,
+  });
+
+  @override
+  State<_PinCenterer> createState() => _PinCentererState();
+}
+
+/// State for the PinCenterer that handles measurement and positioning
+class _PinCentererState extends State<_PinCenterer> {
+  /// Key used to access the child widget for measurement
+  final GlobalKey _childKey = GlobalKey();
+
+  /// Size of the child widget after measurement
+  Size _childSize = Size.zero;
+
+  /// Whether the child has been measured yet
+  bool _isMeasured = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Schedule a post-frame callback to measure the child
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureChild());
+  }
+
+  /// Measures the size of the child widget
+  ///
+  /// This method:
+  /// - Accesses the render object of the child widget
+  /// - Extracts its dimensions
+  /// - Updates the state with the measured size
+  void _measureChild() {
+    final RenderBox? renderBox =
+        _childKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      setState(() {
+        _childSize = renderBox.size;
+        _isMeasured = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isMeasured) {
+      // First build: measure the child using offscreen rendering
+      return Offstage(
+        offstage: true, // Hide during measurement without using Opacity
+        child: Container(
+          key: _childKey,
+          child: widget.child,
+        ),
+      );
+    } else {
+      // Subsequent builds: apply the offset
+      return Transform.translate(
+        offset: Offset(-_childSize.width / 2, -_childSize.height / 2),
+        child: widget.child,
+      );
     }
   }
 }
