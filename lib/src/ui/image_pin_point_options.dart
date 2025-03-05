@@ -11,9 +11,9 @@ class ImagePinPointOptions extends StatelessWidget {
   /// The list of widgets representing different pin styles and their actions.
   ///
   /// These are typically buttons that you design which, when pressed, will:
-  /// - Select a pin style to be added to the image by setting the [selectedPinStyle]
-  /// - Perform actions such as resetting pins by clearing the [pinsOnTheImage]
-  /// - Save the image by calling the [ImagePinPoint.saveImage] method
+  /// - Select a pin style to be added to the image by setting a selected pin style
+  /// - Perform actions such as clearing pins from the image
+  /// - Trigger other custom actions related to image annotation
   const ImagePinPointOptions({
     super.key,
     required this.pinStyleOptions,
@@ -23,13 +23,13 @@ class ImagePinPointOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(10),
-      child: Wrap(
-        spacing: 10,
-        alignment: WrapAlignment.center,
-        children: pinStyleOptions,
-      ),
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      direction: Axis.horizontal,
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: pinStyleOptions,
     );
   }
 }

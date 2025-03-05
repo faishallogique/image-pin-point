@@ -32,6 +32,7 @@ class ImagePinPointContainer extends StatefulWidget {
     this.selectedPinStyle,
     required this.onPinsUpdated,
     required this.imagePinPointKey,
+    this.onFirstLoad,
   });
 
   /// list of pins to display on the image
@@ -53,6 +54,10 @@ class ImagePinPointContainer extends StatefulWidget {
   /// Key used for capturing the widget state as an image
   /// This is required for the image saving functionality
   final GlobalKey imagePinPointKey;
+
+  /// Callback triggered when the widget is first loaded
+  /// This is useful for initializing data or triggering actions when the widget appears
+  final void Function()? onFirstLoad;
 
   @override
   State<ImagePinPointContainer> createState() => _ImagePinPointContainerState();
@@ -91,6 +96,10 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     _selectedPinStyle = widget.selectedPinStyle;
 
     _updateImageDimensions();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onFirstLoad?.call();
+    });
   }
 
   @override
