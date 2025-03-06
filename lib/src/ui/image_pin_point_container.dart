@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
@@ -30,9 +31,10 @@ class ImagePinPointContainer extends StatefulWidget {
     this.pinsOnTheImage = const [],
     required this.imageSource,
     this.selectedPinStyle,
-    required this.onPinsUpdated,
+    this.onPinsUpdated,
     required this.imagePinPointKey,
     this.onFirstLoad,
+    this.onPinsEditingComplete,
   });
 
   /// list of pins to display on the image
@@ -49,7 +51,7 @@ class ImagePinPointContainer extends StatefulWidget {
 
   /// Callback triggered when pins are added/modified
   /// Provides the updated list of all pins on the image
-  final void Function(List<Pinner> pins) onPinsUpdated;
+  final void Function(List<Pinner> pins)? onPinsUpdated;
 
   /// Key used for capturing the widget state as an image
   /// This is required for the image saving functionality
@@ -58,6 +60,14 @@ class ImagePinPointContainer extends StatefulWidget {
   /// Callback triggered when the widget is first loaded
   /// This is useful for initializing data or triggering actions when the widget appears
   final void Function()? onFirstLoad;
+
+  /// Callback triggered when the user finishes adding pins to the image
+  ///
+  /// This is similar to onEditingComplete in TextField - it's called when the user
+  /// has finished interacting with the pins and no new pins are being added.
+  /// This is useful for performing actions only after the user has completed
+  /// their pin placement, rather than during each pin update.
+  final void Function(List<Pinner> pins)? onPinsEditingComplete;
 
   @override
   State<ImagePinPointContainer> createState() => _ImagePinPointContainerState();
@@ -86,6 +96,12 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// Determines the appearance of new pins when tapping the image
   Pinner? _selectedPinStyle;
 
+  /// Timer to detect when user has finished adding pins
+  Timer? _editingCompleteTimer;
+
+  /// Duration to wait before considering pin editing complete
+  static const Duration _editingCompleteDelay = Duration(seconds: 1);
+
   @override
   void initState() {
     super.initState();
@@ -100,6 +116,23 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onFirstLoad?.call();
     });
+  }
+
+  @override
+  void dispose() {
+    _editingCompleteTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Resets the editing complete timer
+  /// Called each time a pin is added to detect when user stops adding pins
+  void _resetEditingCompleteTimer(List<Pinner> pins) {
+    _editingCompleteTimer?.cancel();
+    if (widget.onPinsEditingComplete != null) {
+      _editingCompleteTimer = Timer(_editingCompleteDelay, () {
+        widget.onPinsEditingComplete?.call(pins);
+      });
+    }
   }
 
   @override
@@ -172,7 +205,9 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
               widget: _selectedPinStyle!.widget,
             )
           ];
-          widget.onPinsUpdated.call(_pins);
+          widget.onPinsUpdated?.call(_pins);
+          _resetEditingCompleteTimer(
+              _pins); // Reset timer when a new pin is added
         });
       } catch (e) {
         log('${LogMessages.errorAddingPin}: $e');
