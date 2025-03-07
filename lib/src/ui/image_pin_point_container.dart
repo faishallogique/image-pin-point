@@ -26,6 +26,9 @@ class ImagePinPointContainer extends StatefulWidget {
   /// - [selectedPinStyle]: Currently selected pin style to add new pin on the image
   /// - [onPinsUpdated]: Callback when pins on the image are added
   /// - [imagePinPointKey]: Key used for capturing the widget state as an image
+  /// - [onFirstLoadCompleted]: Callback when image is first loaded
+  /// - [onPinsEditingComplete]: Callback when user finishes adding pins
+  /// - [onInit]: Callback when widget is initialized
   const ImagePinPointContainer({
     super.key,
     this.pinsOnTheImage = const [],
@@ -33,11 +36,12 @@ class ImagePinPointContainer extends StatefulWidget {
     this.selectedPinStyle,
     this.onPinsUpdated,
     required this.imagePinPointKey,
-    this.onFirstLoad,
+    this.onFirstLoadCompleted,
     this.onPinsEditingComplete,
+    this.onInit,
   });
 
-  /// list of pins to display on the image
+  /// List of pins to display on the image
   /// These pins will be shown when the widget loads
   final List<Pinner> pinsOnTheImage;
 
@@ -59,7 +63,7 @@ class ImagePinPointContainer extends StatefulWidget {
 
   /// Callback triggered when the widget is first loaded
   /// This is useful for initializing data or triggering actions when the widget appears
-  final void Function()? onFirstLoad;
+  final void Function()? onFirstLoadCompleted;
 
   /// Callback triggered when the user finishes adding pins to the image
   ///
@@ -68,6 +72,10 @@ class ImagePinPointContainer extends StatefulWidget {
   /// This is useful for performing actions only after the user has completed
   /// their pin placement, rather than during each pin update.
   final void Function(List<Pinner> pins)? onPinsEditingComplete;
+
+  /// Callback triggered when the widget is initialized
+  /// Useful for setup operations that need to happen at widget creation
+  final void Function()? onInit;
 
   @override
   State<ImagePinPointContainer> createState() => _ImagePinPointContainerState();
@@ -102,9 +110,18 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// Duration to wait before considering pin editing complete
   static const Duration _editingCompleteDelay = Duration(seconds: 1);
 
+  /// Flag to track if the image loaded callback has been called
+  bool _hasCalledImageLoaded = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Call onInit callback on the next frame
+    Future.delayed(Duration.zero, () {
+      widget.onInit?.call();
+    });
+
     // Initialize with default values
     _imageWidth = 1.0;
     _imageHeight = 1.0;
@@ -112,10 +129,6 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     _selectedPinStyle = widget.selectedPinStyle;
 
     _updateImageDimensions();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.onFirstLoad?.call();
-    });
   }
 
   @override
@@ -143,6 +156,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
     if (oldWidget.imageSource != widget.imageSource) {
       _updateImageDimensions();
       setState(() {
+        _hasCalledImageLoaded = false;
         _pins = [];
         _selectedPinStyle = null;
       });
@@ -206,8 +220,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
             )
           ];
           widget.onPinsUpdated?.call(_pins);
-          _resetEditingCompleteTimer(
-              _pins); // Reset timer when a new pin is added
+          _resetEditingCompleteTimer(_pins);
         });
       } catch (e) {
         log('${LogMessages.errorAddingPin}: $e');
@@ -232,7 +245,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
                     return Positioned(
                       left: pin.position.dx,
                       top: pin.position.dy,
-                      child: _PinCenterer(
+                      child: PinPositioner(
                         child: Material(
                           color: Colors.transparent,
                           child: pin.widget,
@@ -254,7 +267,7 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
   /// - Determines if the image source is a network URL or local file
   /// - Creates the appropriate image widget with error handling
   /// - Applies consistent fit and error display across source types
-  /// - Catches and logs any exceptions during image creation
+  /// - Triggers onFirstLoadCompleted callback when image is loaded
   Widget _buildImage() {
     try {
       return ImageUtils.isNetworkImage(widget.imageSource)
@@ -263,12 +276,31 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
               fit: BoxFit.contain,
               errorWidget: (context, url, error) =>
                   const Center(child: Icon(Icons.error)),
+              imageBuilder: (context, imageProvider) {
+                // Only call if not called before for this image
+                if (!_hasCalledImageLoaded) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    widget.onFirstLoadCompleted?.call();
+                    _hasCalledImageLoaded = true;
+                  });
+                }
+                return Image(image: imageProvider, fit: BoxFit.contain);
+              },
             )
           : Image.file(
               File(widget.imageSource),
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) =>
                   const Center(child: Icon(Icons.error)),
+              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                if (frame != null && !_hasCalledImageLoaded) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    widget.onFirstLoadCompleted?.call();
+                    _hasCalledImageLoaded = true;
+                  });
+                }
+                return child;
+              },
             );
     } catch (e) {
       log('${LogMessages.errorBuildingImage}: $e');
@@ -281,21 +313,22 @@ class _ImagePinPointContainerState extends State<ImagePinPointContainer>
 ///
 /// This widget ensures that pins are properly centered at their exact coordinates
 /// by measuring the child widget's size and applying an appropriate offset.
-class _PinCenterer extends StatefulWidget {
+class PinPositioner extends StatefulWidget {
   /// The widget to be centered (typically a pin marker)
   final Widget child;
 
   /// Creates a widget that centers its child at the origin point
-  const _PinCenterer({
+  const PinPositioner({
+    super.key,
     required this.child,
   });
 
   @override
-  State<_PinCenterer> createState() => _PinCentererState();
+  State<PinPositioner> createState() => _PinPositionerState();
 }
 
-/// State for the PinCenterer that handles measurement and positioning
-class _PinCentererState extends State<_PinCenterer> {
+/// State for the PinPositioner that handles measurement and positioning
+class _PinPositionerState extends State<PinPositioner> {
   /// Key used to access the child widget for measurement
   final GlobalKey _childKey = GlobalKey();
 
@@ -341,7 +374,7 @@ class _PinCentererState extends State<_PinCenterer> {
         ),
       );
     } else {
-      // Subsequent builds: apply the offset
+      // Subsequent builds: apply the offset to center the pin
       return Transform.translate(
         offset: Offset(-_childSize.width / 2, -_childSize.height / 2),
         child: widget.child,
