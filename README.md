@@ -91,17 +91,16 @@ ImagePinPointOptions(
     //pin style options to be added on the image
     ...List.generate(4, (index) {
         final colors = [
-        Colors.red,
-        Colors.blue,
-        Colors.green,
-        Colors.orange,
+            Colors.red,
+            Colors.blue,
+            Colors.green,
+            Colors.orange,
         ];
 
         final labels = ['A', 'B', 'C', 'D'];
 
-        return _buildButton(labels[index], colors[index],
+        return _buildCustomPin(labels[index], colors[index],
             (selectedPinner) {
-                selectedPinStyle
             //update the selected pin style
             setState(() {
                 selectedPinStyle = selectedPinner;
@@ -122,7 +121,7 @@ ImagePinPointOptions(
     IconButton(
         onPressed: () async {
             //pass the imageKey you previously declare and set on the ImagePinPointContainer
-            final OperationResult result = await ImagePinPoint.saveImage(imageKey,
+            final OperationResult result = await ImagePinPoint.saveImage(imageKey, 
                 skipSaveToGallery: false);
             print(result.filePath);
         },
@@ -134,7 +133,7 @@ ImagePinPointOptions(
 
 ...
 // your custom widget
-Widget _buildButton(String label, Color color,
+Widget _buildCustomPin(String label, Color color,
     final Function(Pinner selectedPinner) onSelectedButtonTapped) {
 final child = Ink(
     width: 32,
