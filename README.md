@@ -20,7 +20,7 @@ A Flutter package that allows you to add interactive pins to images with customi
 Add the package to your `pubspec.yaml`:
 ```yaml
 dependencies:
-  image_pin_point: ^0.0.1
+  image_pin_point: ^0.0.2
 ```
 
 ---
