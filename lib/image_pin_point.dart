@@ -7,7 +7,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:image/image.dart' as img;
 import 'package:image_pin_point/src/constants/log_messages.dart';
 import 'package:image_pin_point/src/domain/operation_result.dart';
 import 'package:path_provider/path_provider.dart';
@@ -83,19 +82,6 @@ class ImagePinPoint {
       final File tempFile = File(tempFilePath)..createSync(recursive: true);
       await tempFile.writeAsBytes(imageBytes);
 
-      // Check if the image is flipped (happens on some devices)
-      final bool isFlipped = await _isImageFlipped(
-        tempFile,
-        imageBytes,
-      );
-
-      log('${LogMessages.infoImageFlipState}: $isFlipped');
-
-      // Correct the orientation if needed
-      if (isFlipped) {
-        imageBytes = await _flipImageVertically(imageBytes);
-      }
-
       // Clean up the temporary file
       if (await tempFile.exists()) {
         await tempFile.delete();
@@ -103,7 +89,7 @@ class ImagePinPoint {
 
       // Create a local copy of the saved image
       final File finalFile = File(finalFilePath)..createSync(recursive: true);
-      await finalFile.writeAsBytes(imageBytes!);
+      await finalFile.writeAsBytes(imageBytes);
 
       // Save to gallery if requested
       if (!skipSaveToGallery) {
@@ -121,105 +107,6 @@ class ImagePinPoint {
     } catch (e) {
       log('${LogMessages.errorSavingImage}: $e');
       return OperationResult(isSuccess: false, message: 'Failed to save image');
-    }
-  }
-
-  /// Flips an image vertically using Flutter's Canvas API
-  ///
-  /// This method corrects image orientation issues that can occur on some devices
-  /// during the capture process. It creates a new image with the correct orientation.
-  ///
-  /// Parameters:
-  /// - [imageBytes]: The original image data to be flipped
-  ///
-  /// Returns:
-  /// - A Uint8List containing the flipped image data, or null if the operation fails
-  static Future<Uint8List?> _flipImageVertically(Uint8List imageBytes) async {
-    try {
-      final ui.Codec codec = await ui.instantiateImageCodec(imageBytes);
-      final ui.FrameInfo frameInfo = await codec.getNextFrame();
-      final ui.Image sourceImage = frameInfo.image;
-
-      final ui.PictureRecorder recorder = ui.PictureRecorder();
-      final Canvas canvas = Canvas(recorder);
-
-      // Apply transformations to flip the image vertically
-      canvas.translate(0, sourceImage.height.toDouble());
-      canvas.scale(1, -1);
-      canvas.drawImage(sourceImage, Offset.zero, Paint());
-
-      final ui.Picture picture = recorder.endRecording();
-      final ui.Image flippedImage =
-          await picture.toImage(sourceImage.width, sourceImage.height);
-
-      final ByteData? byteData = await flippedImage.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-
-      // Dispose resources to prevent memory leaks
-      sourceImage.dispose();
-      flippedImage.dispose();
-
-      return byteData?.buffer.asUint8List();
-    } catch (e) {
-      log('${LogMessages.errorFlippingImage}: $e');
-      return null;
-    }
-  }
-
-  /// Checks if an image is vertically flipped by comparing pixels
-  ///
-  /// This method determines if an image needs orientation correction by comparing
-  /// the top row of the original image with the bottom row of the saved image.
-  ///
-  /// Parameters:
-  /// - [savedImageFile]: The file containing the potentially flipped image
-  /// - [originalImageBytes]: The original image data before saving
-  ///
-  /// Returns:
-  /// - true if the image appears to be flipped vertically, false otherwise
-  static Future<bool> _isImageFlipped(
-    File savedImageFile,
-    Uint8List originalImageBytes,
-  ) async {
-    try {
-      // Decode original image
-      final img.Image? originalImage = img.decodeImage(originalImageBytes);
-      if (originalImage == null) return false;
-
-      // Decode saved image
-      final Uint8List savedImageBytes = await savedImageFile.readAsBytes();
-      final img.Image? savedImage = img.decodeImage(savedImageBytes);
-      if (savedImage == null) return false;
-
-      // Ensure both images are the same size
-      if (originalImage.width != savedImage.width ||
-          originalImage.height != savedImage.height) {
-        return false;
-      }
-
-      final int width = originalImage.width;
-      final int height = originalImage.height;
-
-      // Compare pixels from the first and last row
-      // We use a sample of pixels across the width to determine if flipped
-      int matchCount = 0;
-      final int sampleSize = width;
-
-      for (int x = 0; x < width; x += width ~/ sampleSize) {
-        final originalTopPixel = originalImage.getPixel(x, 0);
-        final savedBottomPixel = savedImage.getPixel(x, height - 1);
-
-        if (originalTopPixel == savedBottomPixel) {
-          matchCount++;
-        }
-      }
-
-      // If more than 75% of sampled pixels match, consider it flipped
-      return matchCount > (sampleSize * 0.75);
-    } catch (e) {
-      log('${LogMessages.errorCheckingFlippedImage}: $e');
-      return false;
     }
   }
 }
