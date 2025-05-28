@@ -1,11 +1,10 @@
 name: image_pin_point
 description: "A Flutter package that allows you to add interactive pins to images with customizable styles and positions."
-version: 0.0.1
-homepage:
+version: 0.0.2
+homepage: https://github.com/faishallogique/image-pin-point
 
 environment:
-  sdk: ^3.5.4
-  flutter: ">=1.17.0"
+  sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -14,11 +13,10 @@ dependencies:
   cached_network_image: ^3.4.1
   path_provider: ^2.1.5
   saver_gallery: ^4.0.1
-  image: ^4.5.2
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
 
-flutter:
