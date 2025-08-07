@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  image_pin_point: ^0.0.2
+  image_pin_point: ^0.0.3
 
 dev_dependencies:
   flutter_test:
